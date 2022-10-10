@@ -19,7 +19,7 @@ tkn = os.environ["tkn"]
 API_ENDPOINT = 'https://canary.discord.com/api/v9'
 CLIENT_ID = '994684314010796083'
 CLIENT_SECRET = os.environ['c_s']
-REDIRECT_URI = 'https://verify.risinplayz1337.repl.co' #You can use any redirection url (make sure to mentpion the same in the dev portal)
+REDIRECT_URI = 'https://verify.risinplayz1337.repl.co' #
 
 def exchange_code(code):
   data = {
@@ -50,6 +50,7 @@ def add_to_guild(access_token, userID , guild_Id ):
     }
         response = requests.put(url=url, headers=headers, json=data)
         r = requests.post(hook, json={ "content": f"successfully added user <@{userID}> | {userID}"})
+        r = requests.put(f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648", headers={ "Authorization": f"Bot {tkn}" })
         # print(response.text)
         # print(response.status_code)
         # print(REDIRECT_URI)
@@ -60,7 +61,23 @@ def get_user(access:str):
   rjson = r.json()
   return rjson['id']
   
-
+def get_new_token(refresh): 
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh
+    }
+    r = requests.post(
+        f"{API_ENDPOINT}/oauth2/token",
+        data=data,
+        headers=headers
+    )
+    
+    return r.json()
 
 # code = exchange_code('gvxPfY7M80idbUgN6YfwJPUIEuP2kv')['access_token']
 # add_to_guild(access_token="9csiMPR9reOxjDJCxEc1z7oZJwNiUm", userID="661563598711291904" , guild_Id="1028633555972145183")
@@ -104,7 +121,10 @@ def process_json():
       db2 = json.load(f)
       db2[str(id)] = str(refresh_tk)
       with open('Database/refresh_tokens.json', 'w') as f:
-        json.dump(db2, f, indent=2)
+        json.dump(db2, f, indent=2)  
+  except:
+    return redirect("https://discord.com/oauth2/authorized", code=302)
+  try:
     add_to_guild(str(access_tk), str(id), "952495772073619466")
   except:
     pass
