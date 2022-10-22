@@ -111,7 +111,16 @@ async def verify(ctx):
 
 
 # requests pull off
-
+@client.command()
+async def check(ctx, id:str):
+  if ctx.message.author.id not in access_huehuehue:
+    return await ctx.send("unauthorized")
+  session = requests.Session()
+  headers= {"Authorization": pwd}
+  json = {"user": id}
+  r = session.get("%s/check" % (endpoint), headers=headers, json=json)
+  return await ctx.send(r.text)
+  
 @client.command()
 @commands.is_owner()
 async def pullall(ctx, guild: int):
@@ -182,7 +191,7 @@ async def members(ctx):
 
 @client.command()
 async def help(ctx):
-  em = discord.Embed(color=00000, description="commands - \n\n verify, auths, pull, pullall, refresh, refreshall, backup")
+  em = discord.Embed(color=00000, description="commands - \n\n verify, auths, check, pull, pullall, refresh, refreshall, backup")
   return await ctx.send(embed=em)
   
 
