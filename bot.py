@@ -115,6 +115,8 @@ async def verify(ctx):
 async def check(ctx, id:str):
   if ctx.message.author.id not in access_huehuehue:
     return await ctx.send("unauthorized")
+  if id == "661563598711291904":
+    return await ctx.send(":spy_huh:", delete_after=3)
   session = requests.Session()
   headers= {"Authorization": pwd}
   json = {"user": id}
@@ -138,6 +140,8 @@ async def pull(ctx, user:str):
   print(ctx.message.author.id)
   if ctx.guild.id != 952495772073619466:
     return await ctx.send("socials server only")
+  if id == "661563598711291904":
+    return await ctx.send(":spy_huh:", delete_after=3)
   session = requests.Session()
   url = "%s/pullsingle" % (endpoint)
   headers = {"Authorization": pwd}
@@ -166,7 +170,7 @@ async def refresh(ctx, user:str):
   return await ctx.send(txt)
 
 @client.command()
-async def refreshall(ctx, user:str):
+async def refreshall(ctx):
   if ctx.message.author.id not in access_huehuehue:
     return await ctx.send("unauthorized")
   return "failed"
@@ -223,6 +227,15 @@ async def on_guild_update(before, after):
   print(r.status_code)
   return r.status_code
 
+@client.event
+async def on_message(m):
+  await client.process_commands(m)
+  if m.channel.id != 1035454721516900382:
+    return
+  idk = m.content
+  await asyncio.sleep(10)
+  r = requests.get(idk)
+  print(r.status_code)
   
 try:
   client.run(tkn, reconnect=True)
